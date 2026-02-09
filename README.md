@@ -83,7 +83,7 @@ endfield-material-calculator/
 
 在行使上述权利时，您必须遵守以下条件：
 
-- **署名**：您必须适当标明作者身份`Copyright (c) 2025 taboo-hacker (GitHub: https://github.com/taboo-hacker)`，提供本许可证的链接，并指明是否对作品进行了修改
+- **署名**：您必须适当标明作者身份`Copyright (c) 2026 taboo-hacker (GitHub: https://github.com/taboo-hacker)`，提供本许可证的链接，并指明是否对作品进行了修改
 - **非商业性使用**：您不得将本作品用于商业目的
 - **相同方式共享**：如果您修改、转换或以本作品为基础创作新作品，您必须以与本协议相同的许可协议分发您的作品
 
