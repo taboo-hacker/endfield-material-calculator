@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>终末地物资调度计算器</title>
+    <!-- Tailwind CSS 框架 -->
+    <script src="lib/tailwind.min.js"></script>
+    <!-- Chart.js 图表库 -->
+    <script src="lib/chart.umd.min.js"></script>
+    <!-- 自定义样式 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-endfield {
+                background-color: #0f1724;
+            }
+            .bg-card {
+                background-color: #1e293b;
+            }
+            .text-primary {
+                color: #38bdf8;
+            }
+            .border-primary {
+                border-color: #38bdf8;
+            }
+            .highlight-best {
+                border: 2px solid #ef4444 !important;
+                background-color: rgba(239, 68, 68, 0.1);
+            }
+            .text-loss {
+                color: #ef4444;
+            }
+            .tag-valley {
+                background-color: #0ea5e9;
+                color: white;
+            }
+            .tag-wuling {
+                background-color: #10b981;
+                color: white;
+            }
+            /* 移除数字输入框的上下调节按钮 */
+            input[type="number"]::-webkit-outer-spin-button,
+            input[type="number"]::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            input[type="number"] {
+                -moz-appearance: textfield;
+                appearance: textfield;
+            }
+            /* 新增图表容器样式 */
+            .chart-container {
+                position: relative;
+                height: 70vh;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-endfield text-gray-200 min-h-screen">
+    <!-- 顶部导航 -->
+    <header class="py-4 px-6 border-b border-gray-700 sticky top-0 bg-endfield/90 backdrop-blur-sm z-10">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <h1 class="text-[clamp(1.5rem,3vw,2rem)] font-bold text-primary">终末地物资调度计算器</h1>
+            <div class="flex items-center gap-4">
+                <!-- 新增地区选择下拉框 -->
+                <div class="flex items-center">
+                    <label class="text-sm text-gray-300 mr-2">选择地区：</label>
+                    <select id="regionSelector" class="bg-card border border-gray-600 rounded px-3 py-2 text-sm text-gray-200">
+                        <option value="valley">四号谷地</option>
+                        <option value="wuling">武陵</option>
+                    </select>
+                </div>
+                <div class="text-sm text-gray-400">建议价格线：2000</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- 地区切换+操作工具栏 -->
+        <div class="mb-8 flex flex-wrap gap-4 justify-between items-center">
+            <div class="flex gap-2">
+                <button id="sortProfitRate" class="px-4 py-2 bg-card border border-primary rounded-md hover:bg-primary/10 transition">按收益率排序</button>
+                <button id="sortTotalProfit" class="px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition">按总利润排序</button>
+                <button id="fillDefault" class="px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition">一键填充建议价(2000)</button>
+                <button id="clearAll" class="px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition">清空所有数据</button>
+            </div>
+        </div>
+
+        <!-- 物资录入区（根据选择切换显示） -->
+        <div class="mb-10">
+            <!-- 四号谷地 -->
+            <div id="valleySection" class="bg-card rounded-lg p-6 border border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <span class="tag-valley px-2 py-1 rounded text-xs mr-2">四号谷地</span>
+                    物资录入
+                </h2>
+                <div class="mb-4 flex flex-wrap gap-2 items-center">
+                    <div class="flex items-center">
+                        <label class="text-sm text-gray-300 mr-2">统一采购数量：</label>
+                        <input id="valleyQtyInput" type="number" class="w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="1" value="210">
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-700 sticky top-0 bg-card/90 backdrop-blur-sm">
+                                <th class="py-2 text-left text-sm text-gray-400">物资名称</th>
+                                <th class="py-2 text-left text-sm text-gray-400">建议价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">实际购入价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">售出价</th>
+                            </tr>
+                        </thead>
+                        <tbody id="valleyItems">
+                            <!-- 预设商品列表（完整11个） -->
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">锚点厨具货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">悬空腕兽骨殖货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">巫术矿钻货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">天使罐头货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">谷地水培肉货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">团结牌口服液货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">塞什卡钟石货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">漂石树幼苗货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">星体晶块货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">警戒者矿镐货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="valley">
+                                <td class="py-2 text-sm">边角料积木货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 武陵（默认隐藏） -->
+            <div id="wulingSection" class="bg-card rounded-lg p-6 border border-gray-700 hidden">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <span class="tag-wuling px-2 py-1 rounded text-xs mr-2">武陵</span>
+                    物资录入
+                </h2>
+                <div class="mb-4 flex flex-wrap gap-2 items-center">
+                    <div class="flex items-center">
+                        <label class="text-sm text-gray-300 mr-2">统一采购数量：</label>
+                        <input id="wulingQtyInput" type="number" class="w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="1" value="50">
+                    </div>
+                </div>
+                <div>
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-700">
+                                <th class="py-2 text-left text-sm text-gray-400">物资名称</th>
+                                <th class="py-2 text-left text-sm text-gray-400">建议价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">实际购入价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">售出价</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wulingItems">
+                            <!-- 预设商品列表 -->
+                            <tr class="border-b border-gray-800 py-2" data-region="wuling">
+                                <td class="py-2 text-sm">岳研避瘴茶货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="wuling">
+                                <td class="py-2 text-sm">武侠电影货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="wuling">
+                                <td class="py-2 text-sm">冬虫夏笋货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                            <tr class="border-b border-gray-800 py-2" data-region="wuling">
+                                <td class="py-2 text-sm">武陵冻梨货组</td>
+                                <td class="py-2 text-sm text-gray-400">2000</td>
+                                <td class="py-2"><input type="number" class="buy-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                                <td class="py-2"><input type="number" class="sell-price w-20 bg-endfield border border-gray-600 rounded px-2 py-1 text-sm" min="0"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收益计算结果区（根据选择切换显示） -->
+        <div class="mb-10">
+            <!-- 四号谷地结果 -->
+            <div id="valleyResultSection" class="bg-card rounded-lg p-6 border border-gray-700">
+                <h2 class="text-xl font-semibold mb-6 flex items-center">
+                    <span class="tag-valley px-2 py-1 rounded text-xs mr-2">四号谷地</span>
+                    收益计算结果
+                </h2>
+                
+                <!-- 智能建议 -->
+                <div class="mb-6 p-4 bg-endfield rounded-md border border-gray-700" id="valleySuggestion">
+                    <h3 class="text-primary font-medium mb-2">四号谷地调度分析报告</h3>
+                    <p id="valleySuggestionText" class="text-gray-300">请输入物资价格后生成专业调度分析报告</p>
+                </div>
+
+                <!-- 结果表格 -->
+                <div class="mb-8">
+                    <table class="w-full" id="valleyResultTable">
+                        <thead>
+                            <tr class="border-b border-gray-700 sticky top-0 bg-card/90 backdrop-blur-sm">
+                                <th class="py-2 text-left text-sm text-gray-400">物资名称</th>
+                                <th class="py-2 text-left text-sm text-gray-400">购入价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">售出价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">采购数量</th>
+                                <th class="py-2 text-left text-sm text-gray-400">单个利润</th>
+                                <th class="py-2 text-left text-sm text-gray-400">总利润</th>
+                                <th class="py-2 text-left text-sm text-gray-400">收益率</th>
+                                <th class="py-2 text-left text-sm text-gray-400">标记</th>
+                            </tr>
+                        </thead>
+                        <tbody id="valleyResultBody">
+                            <tr>
+                                <td colspan="8" class="py-4 text-center text-gray-500">请输入四号谷地物资价格后查看计算结果</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 可视化图表区域 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <!-- 总利润柱状图 -->
+                    <div class="h-60 w-full">
+                        <canvas id="valleyProfitChart"></canvas>
+                    </div>
+                    <!-- 新增：收益率柱状图 -->
+                    <div class="h-60 w-full">
+                        <canvas id="valleyRateChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 新增：多维度对比图表 -->
+                <div class="h-96 w-full mb-6">
+                    <canvas id="valleyCombinedChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 武陵结果（默认隐藏） -->
+            <div id="wulingResultSection" class="bg-card rounded-lg p-6 border border-gray-700 hidden">
+                <h2 class="text-xl font-semibold mb-6 flex items-center">
+                    <span class="tag-wuling px-2 py-1 rounded text-xs mr-2">武陵</span>
+                    收益计算结果
+                </h2>
+                
+                <!-- 智能建议 -->
+                <div class="mb-6 p-4 bg-endfield rounded-md border border-gray-700" id="wulingSuggestion">
+                    <h3 class="text-primary font-medium mb-2">武陵调度分析报告</h3>
+                    <p id="wulingSuggestionText" class="text-gray-300">请输入物资价格后生成专业调度分析报告</p>
+                </div>
+
+                <!-- 结果表格 -->
+                <div class="mb-8">
+                    <table class="w-full" id="wulingResultTable">
+                        <thead>
+                            <tr class="border-b border-gray-700">
+                                <th class="py-2 text-left text-sm text-gray-400">物资名称</th>
+                                <th class="py-2 text-left text-sm text-gray-400">购入价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">售出价</th>
+                                <th class="py-2 text-left text-sm text-gray-400">采购数量</th>
+                                <th class="py-2 text-left text-sm text-gray-400">单个利润</th>
+                                <th class="py-2 text-left text-sm text-gray-400">总利润</th>
+                                <th class="py-2 text-left text-sm text-gray-400">收益率</th>
+                                <th class="py-2 text-left text-sm text-gray-400">标记</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wulingResultBody">
+                            <tr>
+                                <td colspan="8" class="py-4 text-center text-gray-500">请输入武陵物资价格后查看计算结果</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 可视化图表区域 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <!-- 总利润柱状图 -->
+                    <div class="h-60 w-full">
+                        <canvas id="wulingProfitChart"></canvas>
+                    </div>
+                    <!-- 新增：收益率柱状图 -->
+                    <div class="h-60 w-full">
+                        <canvas id="wulingRateChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 新增：多维度对比图表 -->
+                <div class="h-96 w-full mb-6">
+                    <canvas id="wulingCombinedChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="py-4 px-6 border-t border-gray-700 text-center text-gray-500 text-sm">
+        <p>终末地物资调度计算器 | 数据仅本地计算，无上传</p>
+    </footer>
+
+    <script>
+        /**
+         * 全局数据存储
+         * @type {Object} 应用核心数据结构
+         */
+        // 物资数据存储（按地区分类）
+        let valleyItems = []; // 四号谷地物资数据
+        let wulingItems = []; // 武陵物资数据
+        
+        // 图表实例存储
+        let valleyChart = null; // 四号谷地总利润图表
+        let wulingChart = null; // 武陵总利润图表
+        let valleyRateChart = null; // 四号谷地收益率图表
+        let wulingRateChart = null; // 武陵收益率图表
+        let valleyCombinedChart = null; // 四号谷地组合分析图表
+        let wulingCombinedChart = null; // 武陵组合分析图表
+        
+        // 业务参数配置
+        let valleyUnifiedQty = 210; // 四号谷地默认采购数量
+        let wulingUnifiedQty = 50;  // 武陵默认采购数量
+        let currentRegion = 'valley'; // 当前选中地区
+        let currentSortType = 'profitRate'; // 当前排序方式
+        
+        /**
+         * 防抖函数
+         * 用于优化实时计算，减少频繁操作导致的性能问题
+         * @param {Function} func - 要执行的函数
+         * @param {number} wait - 等待时间（毫秒）
+         * @returns {Function} 防抖处理后的函数
+         */
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // 防抖处理的计算函数，优化用户输入体验
+        const debouncedCalculateAll = debounce(calculateAll, 300);
+
+        /**
+         * 应用初始化
+         * 在DOM加载完成后执行，绑定事件监听器并初始化组件
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化地区选择器
+            initRegionSelector();
+            
+            // 绑定物资价格输入事件（实时计算）
+            document.querySelectorAll('.buy-price, .sell-price').forEach(input => {
+                input.addEventListener('input', debouncedCalculateAll);
+                input.addEventListener('blur', calculateAll); // 失焦时立即计算，确保数据准确性
+            });
+            
+            // 绑定采购数量输入事件
+            document.getElementById('valleyQtyInput').addEventListener('input', function() {
+                valleyUnifiedQty = parseInt(this.value) || 210; // 确保值为有效数字
+                debouncedCalculateAll();
+            });
+            document.getElementById('valleyQtyInput').addEventListener('blur', function() {
+                this.value = this.value || 210; // 确保输入框显示有效值
+                valleyUnifiedQty = parseInt(this.value) || 210;
+                calculateAll(); // 失焦时立即计算
+            });
+
+            document.getElementById('wulingQtyInput').addEventListener('input', function() {
+                wulingUnifiedQty = parseInt(this.value) || 50; // 确保值为有效数字
+                debouncedCalculateAll();
+            });
+            document.getElementById('wulingQtyInput').addEventListener('blur', function() {
+                this.value = this.value || 50; // 确保输入框显示有效值
+                wulingUnifiedQty = parseInt(this.value) || 50;
+                calculateAll(); // 失焦时立即计算
+            });
+
+            // 绑定功能按钮事件
+            document.getElementById('sortProfitRate').addEventListener('click', () => sortCurrentItems('profitRate'));
+            document.getElementById('sortTotalProfit').addEventListener('click', () => sortCurrentItems('totalProfit'));
+            document.getElementById('fillDefault').addEventListener('click', () => fillDefaultPrice(currentRegion));
+            document.getElementById('clearAll').addEventListener('click', clearAllData);
+
+            // 初始化图表组件
+            initChart('valley');
+            initChart('wuling');
+            initRateChart('valley');
+            initRateChart('wuling');
+            initCombinedChart('valley');
+            initCombinedChart('wuling');
+        });
+
+        /**
+         * 初始化地区选择器
+         * 绑定地区切换事件，实现不同地区数据的显示与隐藏
+         */
+        function initRegionSelector() {
+            const selector = document.getElementById('regionSelector');
+            
+            // 绑定地区切换事件
+            selector.addEventListener('change', function() {
+                currentRegion = this.value;
+                
+                // 隐藏所有区域内容
+                document.getElementById('valleySection').classList.add('hidden');
+                document.getElementById('wulingSection').classList.add('hidden');
+                document.getElementById('valleyResultSection').classList.add('hidden');
+                document.getElementById('wulingResultSection').classList.add('hidden');
+                
+                // 显示选中区域内容
+                document.getElementById(`${currentRegion}Section`).classList.remove('hidden');
+                document.getElementById(`${currentRegion}ResultSection`).classList.remove('hidden');
+                
+                // 重新计算当前区域数据
+                calculateAll();
+            });
+        }
+
+        /**
+         * 填充建议价格
+         * 为指定地区的所有物资填充默认建议价格（2000）
+         * @param {string} region - 地区标识（valley/wuling）
+         */
+        function fillDefaultPrice(region) {
+            document.querySelectorAll(`#${region}Items .buy-price`).forEach(input => {
+                input.value = 2000;
+            });
+            calculateAll();
+        }
+
+        /**
+         * 清空所有数据
+         * 重置所有输入字段和计算参数，使用默认值重新计算
+         */
+        function clearAllData() {
+            // 清空价格输入字段
+            document.querySelectorAll('.buy-price, .sell-price').forEach(input => {
+                input.value = '';
+            });
+            
+            // 重置统一采购量
+            document.getElementById('valleyQtyInput').value = 210;
+            document.getElementById('wulingQtyInput').value = 50;
+            valleyUnifiedQty = 210;
+            wulingUnifiedQty = 50;
+            
+            // 重新计算（使用默认值）
+            calculateAll();
+        }
+
+        /**
+         * 计算所有物资收益
+         * 收集各地区物资数据，计算收益指标，并更新结果显示
+         */
+        function calculateAll() {
+            // 重置数据数组
+            valleyItems = [];
+            wulingItems = [];
+            
+            // 收集四号谷地数据
+            document.querySelectorAll('#valleyItems tr').forEach(row => {
+                collectItemData(row, 'valley', valleyUnifiedQty);
+            });
+
+            // 收集武陵数据
+            document.querySelectorAll('#wulingItems tr').forEach(row => {
+                collectItemData(row, 'wuling', wulingUnifiedQty);
+            });
+
+            // 更新结果表格和图表
+            updateResultTable('valley');
+            updateResultTable('wuling');
+            updateChart('valley', valleyItems);
+            updateChart('wuling', wulingItems);
+            updateRateChart('valley', valleyItems);
+            updateRateChart('wuling', wulingItems);
+            updateCombinedChart('valley', valleyItems);
+            updateCombinedChart('wuling', wulingItems);
+            updateSuggestion('valley');
+            updateSuggestion('wuling');
+        }
+
+        /**
+         * 收集单条物资数据
+         * 从DOM中提取物资价格信息，计算收益指标，并存储到对应地区的数据数组中
+         * @param {HTMLElement} row - 物资表格行元素
+         * @param {string} region - 地区标识（valley/wuling）
+         * @param {number} unifiedQty - 统一采购数量
+         */
+        function collectItemData(row, region, unifiedQty) {
+            const name = row.querySelector('td:first-child').textContent.trim();
+            
+            // 获取价格输入元素
+            const buyPriceInput = row.querySelector('.buy-price');
+            const sellPriceInput = row.querySelector('.sell-price');
+            
+            if (!buyPriceInput || !sellPriceInput) return;
+            
+            // 使用默认值2000当用户未输入时
+            const buyPrice = parseFloat(buyPriceInput.value) || 2000;
+            const sellPrice = parseFloat(sellPriceInput.value) || 2000;
+            const qty = unifiedQty || (region === 'valley' ? 210 : 50);
+
+            if (qty <= 0) return;
+
+            // 计算核心收益指标
+            const singleProfit = sellPrice - buyPrice;
+            const totalProfit = singleProfit * qty;
+            const profitRate = buyPrice > 0 ? (singleProfit / buyPrice) * 100 : 0;
+
+            // 构建物资数据对象
+            const itemData = {
+                name,
+                buyPrice,
+                sellPrice,
+                qty,
+                singleProfit,
+                totalProfit,
+                profitRate
+            };
+
+            // 存储到对应地区的数据数组
+            if (region === 'valley') {
+                valleyItems.push(itemData);
+            } else {
+                wulingItems.push(itemData);
+            }
+        }
+
+        /**
+         * 排序当前选中地区的物资
+         * 根据指定的排序类型对物资进行排序，并更新界面显示
+         * @param {string} type - 排序类型（profitRate/totalProfit）
+         */
+        function sortCurrentItems(type) {
+            let targetArray = currentRegion === 'valley' ? valleyItems : wulingItems;
+            
+            // 根据排序类型执行排序
+            if (type === 'profitRate') {
+                targetArray.sort((a, b) => b.profitRate - a.profitRate);
+            } else if (type === 'totalProfit') {
+                targetArray.sort((a, b) => b.totalProfit - a.totalProfit);
+            }
+            
+            // 更新当前排序方式
+            currentSortType = type;
+            
+            // 更新排序按钮样式，高亮当前排序方式
+            const sortProfitRateBtn = document.getElementById('sortProfitRate');
+            const sortTotalProfitBtn = document.getElementById('sortTotalProfit');
+            
+            if (type === 'profitRate') {
+                sortProfitRateBtn.className = 'px-4 py-2 bg-card border border-primary rounded-md hover:bg-primary/10 transition';
+                sortTotalProfitBtn.className = 'px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition';
+            } else if (type === 'totalProfit') {
+                sortProfitRateBtn.className = 'px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition';
+                sortTotalProfitBtn.className = 'px-4 py-2 bg-card border border-primary rounded-md hover:bg-primary/10 transition';
+            }
+            
+            // 更新结果显示
+            updateResultTable(currentRegion);
+            updateChart(currentRegion, targetArray);
+            updateRateChart(currentRegion, targetArray);
+            updateCombinedChart(currentRegion, targetArray);
+        }
+
+        /**
+         * 更新结果表格（分地区）
+         * 根据计算数据生成物资收益表格，高亮显示最优项，并处理空数据情况
+         * @param {string} region - 地区标识（valley/wuling）
+         */
+        function updateResultTable(region) {
+            const tbodyId = region === 'valley' ? 'valleyResultBody' : 'wulingResultBody';
+            const tbody = document.getElementById(tbodyId);
+            const targetArray = region === 'valley' ? valleyItems : wulingItems;
+            
+            tbody.innerHTML = '';
+
+            if (targetArray.length === 0) {
+                const emptyText = region === 'valley' 
+                    ? '请输入四号谷地物资价格后查看计算结果' 
+                    : '请输入武陵物资价格后查看计算结果';
+                tbody.innerHTML = `<tr><td colspan="8" class="py-4 text-center text-gray-500">${emptyText}</td></tr>`;
+                return;
+            }
+
+            // 计算并确定最优物资
+            const bestProfitRateItem = [...targetArray].sort((a, b) => b.profitRate - a.profitRate)[0];
+            const bestTotalProfitItem = [...targetArray].sort((a, b) => b.totalProfit - a.totalProfit)[0];
+
+            // 生成表格行数据
+            targetArray.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-800 py-2';
+                
+                // 根据当前排序方式高亮最优项
+                if (currentSortType === 'profitRate' && item.name === bestProfitRateItem.name) {
+                    tr.classList.add('highlight-best');
+                } else if (currentSortType === 'totalProfit' && item.name === bestTotalProfitItem.name) {
+                    tr.classList.add('highlight-best');
+                }
+
+                // 应用亏损样式（红色文本）
+                const singleProfitClass = item.singleProfit < 0 ? 'text-loss' : '';
+                const totalProfitClass = item.totalProfit < 0 ? 'text-loss' : '';
+                const profitRateClass = item.profitRate < 0 ? 'text-loss' : '';
+
+                // 生成物资标记文本
+                let tagText = '';
+                if (item.name === bestProfitRateItem.name) {
+                    tagText += '最优收益率';
+                }
+                if (item.name === bestTotalProfitItem.name) {
+                    tagText += tagText ? ' / 最高总利润' : '最高总利润';
+                }
+
+                // 构建表格行HTML
+                tr.innerHTML = `
+                    <td class="py-2 text-sm">${item.name}</td>
+                    <td class="py-2 text-sm">${item.buyPrice}</td>
+                    <td class="py-2 text-sm">${item.sellPrice}</td>
+                    <td class="py-2 text-sm">${item.qty}</td>
+                    <td class="py-2 text-sm ${singleProfitClass}">${item.singleProfit.toFixed(0)}</td>
+                    <td class="py-2 text-sm ${totalProfitClass}">${item.totalProfit.toFixed(0)}</td>
+                    <td class="py-2 text-sm ${profitRateClass}">${item.profitRate.toFixed(1)}%</td>
+                    <td class="py-2 text-sm text-primary">${tagText || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /**
+         * 初始化总利润图表（分地区）
+         * 创建并配置总利润柱状图，设置样式和交互选项
+         * @param {string} region - 地区标识（valley/wuling）
+         */
+        function initChart(region) {
+            const ctxId = region === 'valley' ? 'valleyProfitChart' : 'wulingProfitChart';
+            const ctx = document.getElementById(ctxId).getContext('2d');
+            
+            if (!ctx) {
+                console.error(`Chart context not found for ${region}`);
+                return;
+            }
+            
+            try {
+                const chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: '总利润',
+                            data: [],
+                            backgroundColor: region === 'valley' ? '#0ea5e980' : '#10b98180',
+                            borderColor: region === 'valley' ? '#0ea5e9' : '#10b981',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#94a3b8' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#94a3b8' }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleColor: '#fff',
+                                bodyColor: '#94a3b8'
+                            }
+                        }
+                    }
+                });
+
+                // 存储图表实例
+                if (region === 'valley') {
+                    valleyChart = chartInstance;
+                } else {
+                    wulingChart = chartInstance;
+                }
+            } catch (error) {
+                console.error(`Error initializing chart for ${region}:`, error);
+            }
+        }
+
+        /**
+         * 初始化收益率图表（分地区）
+         * 创建并配置收益率柱状图，设置样式和交互选项
+         * @param {string} region - 地区标识（valley/wuling）
+         */
+        function initRateChart(region) {
+            const ctxId = region === 'valley' ? 'valleyRateChart' : 'wulingRateChart';
+            const ctx = document.getElementById(ctxId).getContext('2d');
+            
+            if (!ctx) {
+                console.error(`Rate chart context not found for ${region}`);
+                return;
+            }
+            
+            try {
+                const chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: '收益率 (%)',
+                            data: [],
+                            backgroundColor: region === 'valley' ? '#3b82f680' : '#f59e0b80',
+                            borderColor: region === 'valley' ? '#3b82f6' : '#f59e0b',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#94a3b8' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { size: 10 } }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#94a3b8' }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleColor: '#fff',
+                                bodyColor: '#94a3b8'
+                            }
+                        }
+                    }
+                });
+
+                // 存储图表实例
+                if (region === 'valley') {
+                    valleyRateChart = chartInstance;
+                } else {
+                    wulingRateChart = chartInstance;
+                }
+            } catch (error) {
+                console.error(`Error initializing rate chart for ${region}:`, error);
+            }
+        }
+
+        /**
+         * 初始化多维度组合图表（分地区）
+         * 创建并配置组合分析图表，同时显示总利润和收益率数据
+         * @param {string} region - 地区标识（valley/wuling）
+         */
+        function initCombinedChart(region) {
+            const ctxId = region === 'valley' ? 'valleyCombinedChart' : 'wulingCombinedChart';
+            const ctx = document.getElementById(ctxId).getContext('2d');
+            
+            if (!ctx) {
+                console.error(`Combined chart context not found for ${region}`);
+                return;
+            }
+            
+            try {
+                const chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: '总利润',
+                                data: [],
+                                backgroundColor: region === 'valley' ? '#0ea5e980' : '#10b98180',
+                                borderColor: region === 'valley' ? '#0ea5e9' : '#10b981',
+                                borderWidth: 1,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: '收益率 (%)',
+                                data: [],
+                                backgroundColor: region === 'valley' ? '#3b82f680' : '#f59e0b80',
+                                borderColor: region === 'valley' ? '#3b82f6' : '#f59e0b',
+                                borderWidth: 1,
+                                type: 'line',
+                                yAxisID: 'y1',
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: '总利润',
+                                    color: '#94a3b8'
+                                },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#94a3b8' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: '收益率 (%)',
+                                    color: '#94a3b8'
+                                },
+                                grid: { drawOnChartArea: false },
+                                ticks: { color: '#94a3b8' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { size: 12 } }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: region === 'valley' ? '四号谷地物资收益多维度分析' : '武陵物资收益多维度分析',
+                                color: '#38bdf8',
+                                font: { size: 16 }
+                            },
+                            legend: {
+                                labels: { color: '#94a3b8' }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1e293b',
+                                titleColor: '#fff',
+                                bodyColor: '#94a3b8',
+                                mode: 'index',
+                                intersect: false
+                            }
+                        }
+                    }
+                });
+
+                // 存储图表实例
+                if (region === 'valley') {
+                    valleyCombinedChart = chartInstance;
+                } else {
+                    wulingCombinedChart = chartInstance;
+                }
+            } catch (error) {
+                console.error(`Error initializing combined chart for ${region}:`, error);
+            }
+        }
+
+        /**
+         * 更新总利润图表（分地区）
+         * 根据计算数据更新总利润柱状图
+         * @param {string} region - 地区标识（valley/wuling）
+         * @param {Array} items - 物资数据数组
+         */
+        function updateChart(region, items) {
+            const chartInstance = region === 'valley' ? valleyChart : wulingChart;
+            if (!chartInstance) return;
+
+            if (items.length === 0) {
+                // 空数据处理
+                chartInstance.data.labels = [];
+                chartInstance.data.datasets[0].data = [];
+            } else {
+                const labels = items.map(item => item.name);
+                const data = items.map(item => item.totalProfit);
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = data;
+            }
+            chartInstance.update();
+        }
+
+        /**
+         * 更新收益率图表（分地区）
+         * 根据计算数据更新收益率柱状图
+         * @param {string} region - 地区标识（valley/wuling）
+         * @param {Array} items - 物资数据数组
+         */
+        function updateRateChart(region, items) {
+            const chartInstance = region === 'valley' ? valleyRateChart : wulingRateChart;
+            if (!chartInstance) return;
+
+            if (items.length === 0) {
+                // 空数据处理
+                chartInstance.data.labels = [];
+                chartInstance.data.datasets[0].data = [];
+            } else {
+                const labels = items.map(item => item.name);
+                const data = items.map(item => item.profitRate);
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = data;
+            }
+            chartInstance.update();
+        }
+
+        /**
+         * 更新多维度组合图表（分地区）
+         * 根据计算数据更新组合分析图表
+         * @param {string} region - 地区标识（valley/wuling）
+         * @param {Array} items - 物资数据数组
+         */
+        function updateCombinedChart(region, items) {
+            const chartInstance = region === 'valley' ? valleyCombinedChart : wulingCombinedChart;
+            if (!chartInstance) return;
+
+            if (items.length === 0) {
+                // 空数据处理
+                chartInstance.data.labels = [];
+                chartInstance.data.datasets[0].data = [];
+                chartInstance.data.datasets[1].data = [];
+            } else {
+                const labels = items.map(item => item.name);
+                const profitData = items.map(item => item.totalProfit);
+                const rateData = items.map(item => item.profitRate);
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = profitData;
+                chartInstance.data.datasets[1].data = rateData;
+            }
+            chartInstance.update();
+        }
+
+        /**
+         * 更新调度建议（分地区）
+         * 生成专业的物资调度分析报告，提供最优采购建议
+         * @param {string} region - 地区标识（valley/wuling）
+         * @param {string} [customText] - 自定义建议文本（可选）
+         */
+        function updateSuggestion(region, customText) {
+            const suggestionTextId = region === 'valley' ? 'valleySuggestionText' : 'wulingSuggestionText';
+            const suggestionEl = document.getElementById(suggestionTextId);
+            const targetArray = region === 'valley' ? valleyItems : wulingItems;
+            const regionName = region === 'valley' ? '四号谷地' : '武陵';
+            
+            if (customText) {
+                suggestionEl.textContent = customText;
+                return;
+            }
+
+            if (targetArray.length === 0) {
+                suggestionEl.textContent = `使用默认价格2000计算${regionName}物资收益`;
+                return;
+            }
+
+            // 深度分析数据
+            const sortedByProfitRate = [...targetArray].sort((a, b) => b.profitRate - a.profitRate);
+            const sortedByTotalProfit = [...targetArray].sort((a, b) => b.totalProfit - a.totalProfit);
+            
+            const bestProfitRateItem = sortedByProfitRate[0];
+            const bestTotalProfitItem = sortedByTotalProfit[0];
+            
+            // 计算整体投资指标
+            const totalInvestment = targetArray.reduce((sum, item) => sum + (item.buyPrice * item.qty), 0);
+            const totalProfit = targetArray.reduce((sum, item) => sum + item.totalProfit, 0);
+            const overallROI = totalInvestment > 0 ? (totalProfit / totalInvestment) * 100 : 0;
+            
+            // 生成专业分析报告
+            let report = `${regionName}物资调度专业分析报告：`;
+            
+            // 收益率分析
+            report += ` 收益率维度最优物资为${bestProfitRateItem.name}，收益率达${bestProfitRateItem.profitRate.toFixed(1)}%，该物资单位投资回报效率最高，适合小额高频交易。`;
+            
+            // 总利润分析
+            report += ` 总利润维度最优物资为${bestTotalProfitItem.name}，总利润为${bestTotalProfitItem.totalProfit.toFixed(0)}，该物资能带来最大的绝对收益，适合大规模集中采购。`;
+            
+            // 整体投资分析
+            report += ` 全品类综合投资回报率为${overallROI.toFixed(1)}%，总投资规模${totalInvestment.toFixed(0)}，预计总收益${totalProfit.toFixed(0)}。`;
+            
+            // 最终决策建议
+            if (bestProfitRateItem.name === bestTotalProfitItem.name) {
+                report += ` 综合来看，${bestTotalProfitItem.name}在收益率和总利润双维度均表现最优，是${regionName}物资调度的核心优选标的，建议优先配置全部采购额度。`;
+            } else {
+                report += ` 综合收益最大化建议：优先采购${bestTotalProfitItem.name}以获取最高绝对收益，剩余额度配置${bestProfitRateItem.name}提升整体投资回报率，此组合可实现收益最大化。`;
+            }
+            
+            // 明确指出收益最高的物资
+            report += ` 最终选择${bestTotalProfitItem.name}可获得最高金钱收益，金额为${bestTotalProfitItem.totalProfit.toFixed(0)}。`;
+
+            suggestionEl.textContent = report;
+        }
+    </script>
+</body>
+</html>
