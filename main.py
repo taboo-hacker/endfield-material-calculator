@@ -18,6 +18,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 matplotlib.use('Qt5Agg')
+# 设置matplotlib中文支持
+matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']  # 用来正常显示中文标签
+matplotlib.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 # 物资数据配置
 DATA_CONFIG = {
@@ -117,6 +120,14 @@ class MaterialTable(QTableWidget):
         self.setHorizontalHeaderLabels(headers)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
+        # 设置表格大小
+        self.setMinimumHeight(400)
+        self.setMinimumWidth(800)
+        
+        # 设置行高
+        for i in range(len(self.config['items'])):
+            self.setRowHeight(i, 30)
+
         self.setRowCount(len(self.config['items']))
         for row, item_name in enumerate(self.config['items']):
             self.setItem(row, 0, QTableWidgetItem(item_name))
@@ -173,6 +184,13 @@ class ResultTable(QTableWidget):
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        
+        # 设置表格大小
+        self.setMinimumHeight(400)
+        self.setMinimumWidth(800)
+        
+        # 设置行高
+        self.verticalHeader().setDefaultSectionSize(30)
 
     def update_data(self, items, best_profit_rate=None, best_total_profit=None, sort_type='profitRate'):
         self.setRowCount(len(items))
