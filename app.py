@@ -1,5 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 import json
+import cv2
+import numpy as np
+import pytesseract
 
 app = Flask(__name__)
 
@@ -80,6 +83,79 @@ def calculate():
         'suggestion': suggestion
     })
 
+@app.route('/ocr', methods=['POST'])
+def ocr():
+    try:
+        import base64
+        from io import BytesIO
+        from PIL import Image as PILImage
+        
+        # 获取图片数据
+        image_data = request.json.get('image')
+        region = request.json.get('region')
+        
+        if not image_data or not region:
+            return jsonify({'error': '缺少参数'}), 400
+        
+        # 解码base64图片
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+        
+        image_bytes = base64.b64decode(image_data)
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return jsonify({'error': '无法读取图片'}), 400
+        
+        # 预处理图片
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # OCR识别
+        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789'
+        data_result = pytesseract.image_to_data(binary, config=custom_config, output_type=pytesseract.Output.DICT)
+        
+        # 提取数字
+        numbers = []
+        for i in range(len(data_result['text'])):
+            text = data_result['text'][i].strip()
+            if text and text.isdigit():
+                numbers.append({
+                    'value': int(text),
+                    'x': data_result['left'][i],
+                    'y': data_result['top'][i],
+                    'width': data_result['width'][i],
+                    'height': data_result['height'][i],
+                    'conf': data_result['conf'][i]
+                })
+        
+        # 过滤和排序
+        numbers = [n for n in numbers if n['conf'] > 50 and len(str(n['value'])) >= 3]
+        numbers.sort(key=lambda x: (x['y'] // 100, x['x']))
+        
+        # 匹配物资
+        item_list = data[region]['item_list']
+        extracted_prices = {}
+        
+        for i, item in enumerate(item_list):
+            if i < len(numbers):
+                price = numbers[i]['value']
+                extracted_prices[item] = {
+                    'buy': price,
+                    'sell': 2000
+                }
+            else:
+                extracted_prices[item] = {
+                    'buy': 2000,
+                    'sell': 2000
+                }
+        
+        return jsonify({'prices': extracted_prices})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 def generate_suggestion(region, results, best_profit_rate, best_total_profit):
     if not results:
         return '请输入物资价格后生成专业调度分析报告'
@@ -112,4 +188,4 @@ def generate_suggestion(region, results, best_profit_rate, best_total_profit):
     return suggestion
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', port=5000)

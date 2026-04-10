@@ -79,11 +79,13 @@
     <main class="max-w-7xl mx-auto px-4 py-8">
         <!-- 地区切换+操作工具栏 -->
         <div class="mb-8 flex flex-wrap gap-4 justify-between items-center">
-            <div class="flex gap-2">
+            <div class="flex gap-2 flex-wrap">
                 <button id="sortProfitRate" class="px-4 py-2 bg-card border border-primary rounded-md hover:bg-primary/10 transition">按收益率排序</button>
                 <button id="sortTotalProfit" class="px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition">按总利润排序</button>
                 <button id="fillDefault" class="px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition">一键填充建议价(2000)</button>
                 <button id="clearAll" class="px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition">清空所有数据</button>
+                <input type="file" id="imageInput" accept="image/*" class="hidden">
+                <button id="ocrBtn" class="px-4 py-2 bg-card border border-gray-600 rounded-md hover:bg-gray-700/50 transition">从图片读取数据</button>
             </div>
         </div>
 
@@ -365,6 +367,8 @@
             document.getElementById('sortTotalProfit').addEventListener('click', () => sortCurrentItems('totalProfit'));
             document.getElementById('fillDefault').addEventListener('click', () => fillDefaultPrice(currentRegion));
             document.getElementById('clearAll').addEventListener('click', clearAllData);
+            document.getElementById('ocrBtn').addEventListener('click', () => document.getElementById('imageInput').click());
+            document.getElementById('imageInput').addEventListener('change', handleOCR);
 
             // 初始化图表组件
             initChart('valley');
@@ -431,6 +435,68 @@
             
             // 重新计算（使用默认值）
             calculateAll();
+        }
+
+        /**
+         * OCR图片处理
+         */
+        async function handleOCR(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const ocrBtn = document.getElementById('ocrBtn');
+            ocrBtn.textContent = '正在识别...';
+            ocrBtn.disabled = true;
+
+            try {
+                // 读取图片为base64
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const imageData = e.target.result;
+                    
+                    // 发送到后端OCR
+                    const response = await fetch('/ocr', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            image: imageData,
+                            region: currentRegion
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        alert('识别失败：' + result.error);
+                    } else {
+                        // 填充识别的数据
+                        const prices = result.prices;
+                        const tbody = document.getElementById(`${currentRegion}Items`);
+                        const rows = tbody.querySelectorAll('tr');
+                        
+                        rows.forEach(row => {
+                            const name = row.querySelector('td:first-child').textContent.trim();
+                            if (prices[name]) {
+                                row.querySelector('.buy-price').value = prices[name].buy;
+                                row.querySelector('.sell-price').value = prices[name].sell;
+                            }
+                        });
+                        
+                        calculateAll();
+                        alert('数据识别完成！');
+                    }
+                    
+                    ocrBtn.textContent = '从图片读取数据';
+                    ocrBtn.disabled = false;
+                    event.target.value = '';
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                alert('识别失败：' + error);
+                ocrBtn.textContent = '从图片读取数据';
+                ocrBtn.disabled = false;
+                event.target.value = '';
+            }
         }
 
         /**
