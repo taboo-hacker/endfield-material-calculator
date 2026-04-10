@@ -134,8 +134,18 @@ def ocr():
         numbers = [n for n in numbers if n['conf'] > 50 and len(str(n['value'])) >= 3]
         numbers.sort(key=lambda x: (x['y'] // 100, x['x']))
         
-        # 匹配物资
+        # 验证区域匹配
         item_list = data[region]['item_list']
+        expected_count = len(item_list)
+        actual_count = len(numbers)
+        
+        # 根据区域验证数字数量
+        if region == 'valley' and actual_count != 11:
+            return jsonify({'error': '图片可能不是四号谷地的截图，应识别到11个价格'}), 400
+        elif region == 'wuling' and actual_count != 4:
+            return jsonify({'error': '图片可能不是武陵的截图，应识别到4个价格'}), 400
+        
+        # 匹配物资
         extracted_prices = {}
         
         for i, item in enumerate(item_list):
