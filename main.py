@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QTableWidget, QTableWidgetItem, QPushButton, QLabel,
     QFileDialog, QMessageBox, QComboBox, QSpinBox, QHeaderView,
-    QSplitter, QTextEdit, QGroupBox, QScrollArea, QFrame
+    QSplitter, QTextEdit, QGroupBox, QScrollArea, QFrame, QSizePolicy
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QRect
 from PyQt5.QtGui import QFont, QColor, QPalette, QBrush
@@ -141,7 +141,7 @@ class MaterialTable(QTableWidget):
             QTableWidget {{
                 background-color: {COLORS['bg_card']};
                 color: #e5e7eb;
-                gridline-color: {COLORS['border_light_gray']};
+                gridline-color: transparent;
                 border: none;
                 border-radius: 0px;
             }}
@@ -185,7 +185,7 @@ class MaterialTable(QTableWidget):
             self.setItem(row, 2, QTableWidgetItem(''))
             self.setItem(row, 3, QTableWidgetItem(''))
 
-            self.setRowHeight(row, 36)
+            self.setRowHeight(row, 32)
 
         self.itemChanged.connect(self.on_item_changed)
 
@@ -243,7 +243,7 @@ class ResultTable(QTableWidget):
             QTableWidget {{
                 background-color: {COLORS['bg_card']};
                 color: #e5e7eb;
-                gridline-color: {COLORS['border_light_gray']};
+                gridline-color: transparent;
                 border: none;
                 border-radius: 0px;
             }}
@@ -265,7 +265,7 @@ class ResultTable(QTableWidget):
             }}
         """)
 
-        self.verticalHeader().setDefaultSectionSize(36)
+        self.verticalHeader().setDefaultSectionSize(32)
 
     def update_data(self, items, best_profit_rate=None, best_total_profit=None, sort_type='profitRate'):
         self.setRowCount(len(items))
@@ -299,7 +299,6 @@ class ResultTable(QTableWidget):
                (sort_type == 'totalProfit' and best_total_profit and item['name'] == best_total_profit['name']):
                 for col in range(self.columnCount()):
                     self.item(row, col).setBackground(QColor(239, 68, 68, 25))
-                    self.item(row, col).setData(Qt.UserRole, 'highlighted')
 
 class ChartWidget(QWidget):
     def __init__(self, parent=None):
@@ -307,6 +306,7 @@ class ChartWidget(QWidget):
         self.figure = Figure(figsize=(15, 10))
         self.canvas = FigureCanvas(self.figure)
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.canvas)
         self.setLayout(layout)
 
@@ -421,6 +421,7 @@ class RegionTag(QLabel):
     def __init__(self, region, parent=None):
         super().__init__(parent)
         self.region = region
+        self.setText(DATA_CONFIG[region]['name'])
         self.setAlignment(Qt.AlignCenter)
         self.setStyleSheet(self.get_style())
 
@@ -448,8 +449,8 @@ class RegionTab(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setSpacing(16)
-        main_layout.setContentsMargins(24, 32, 24, 32)
+        main_layout.setSpacing(32)
+        main_layout.setContentsMargins(16, 32, 16, 32)
 
         # 工具栏
         toolbar = QHBoxLayout()
@@ -484,11 +485,25 @@ class RegionTab(QWidget):
                 border: none;
                 background-color: transparent;
             }}
+            QScrollBar:vertical {{
+                background-color: {COLORS['bg_card']};
+                width: 12px;
+                margin: 0px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {COLORS['border_gray']};
+                min-height: 20px;
+                border-radius: 6px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
         """)
 
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setSpacing(24)
+        content_layout.setSpacing(40)
+        content_layout.setContentsMargins(0, 0, 0, 0)
 
         # 物资录入卡片
         input_group = QGroupBox()
@@ -516,7 +531,7 @@ class RegionTab(QWidget):
         input_header_layout.addWidget(tag)
         
         title_label = QLabel('物资录入')
-        title_label.setFont(QFont('Arial', 16, QFont.Bold))
+        title_label.setFont(QFont('Arial', 18, QFont.Bold))
         title_label.setStyleSheet('color: #e5e7eb;')
         input_header_layout.addWidget(title_label)
         input_header_layout.addStretch()
@@ -540,6 +555,10 @@ class RegionTab(QWidget):
                 font-size: 14px;
                 width: 80px;
             }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                width: 0px;
+                height: 0px;
+            }}
         """)
         self.qty_spin.valueChanged.connect(self.calculate)
         qty_layout.addWidget(self.qty_spin)
@@ -549,8 +568,14 @@ class RegionTab(QWidget):
         input_layout = QVBoxLayout()
         input_layout.setContentsMargins(0, 0, 0, 24)
         input_layout.addLayout(input_header_layout)
+        
+        table_container = QWidget()
+        table_layout = QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
         self.material_table = MaterialTable(self.region)
-        input_layout.addWidget(self.material_table)
+        table_layout.addWidget(self.material_table)
+        input_layout.addWidget(table_container)
+        
         input_group.setLayout(input_layout)
         content_layout.addWidget(input_group)
 
@@ -576,7 +601,7 @@ class RegionTab(QWidget):
         
         suggestion_title = QLabel(f'{self.config["name"]}调度分析报告')
         suggestion_title.setFont(QFont('Arial', 14, QFont.Medium))
-        suggestion_title.setStyleSheet(f'color: {COLORS["text_primary"]};')
+        suggestion_title.setStyleSheet(f'color: {COLORS["text_primary"]}; margin-bottom: 8px;')
         suggestion_layout.addWidget(suggestion_title)
         
         self.suggestion_text = QTextEdit()
@@ -623,7 +648,7 @@ class RegionTab(QWidget):
         result_header_layout.addWidget(result_tag)
         
         result_title = QLabel('收益计算结果')
-        result_title.setFont(QFont('Arial', 16, QFont.Bold))
+        result_title.setFont(QFont('Arial', 18, QFont.Bold))
         result_title.setStyleSheet('color: #e5e7eb;')
         result_header_layout.addWidget(result_title)
         result_header_layout.addStretch()
@@ -635,29 +660,82 @@ class RegionTab(QWidget):
         result_group.setLayout(result_layout)
         content_layout.addWidget(result_group)
 
-        # 图表
-        chart_group = QGroupBox()
-        chart_group.setStyleSheet(f"""
+        # 图表区域 - 两个并排的图表
+        chart_container = QWidget()
+        chart_container_layout = QVBoxLayout(chart_container)
+        chart_container_layout.setSpacing(24)
+        chart_container_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 第一行：两个并排图表
+        charts_row1 = QHBoxLayout()
+        charts_row1.setSpacing(24)
+        
+        profit_chart_group = QGroupBox()
+        profit_chart_group.setStyleSheet(f"""
             QGroupBox {{
                 background-color: {COLORS['bg_card']};
                 color: #e5e7eb;
                 border: 1px solid {COLORS['border_light_gray']};
                 border-radius: 8px;
                 margin-top: 0px;
-                padding-top: 24px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 24px;
-                top: 0px;
+                padding-top: 0px;
             }}
         """)
-        chart_layout = QVBoxLayout()
-        chart_layout.setContentsMargins(24, 0, 24, 24)
-        self.chart_widget = ChartWidget()
-        chart_layout.addWidget(self.chart_widget)
-        chart_group.setLayout(chart_layout)
-        content_layout.addWidget(chart_group)
+        profit_chart_layout = QVBoxLayout()
+        profit_chart_layout.setContentsMargins(0, 0, 0, 0)
+        self.profit_chart = FigureCanvas(Figure(figsize=(6, 4)))
+        self.profit_chart.figure.set_facecolor('#1e293b')
+        profit_chart_layout.addWidget(self.profit_chart)
+        profit_chart_group.setLayout(profit_chart_layout)
+        profit_chart_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        profit_chart_group.setMinimumHeight(240)
+        charts_row1.addWidget(profit_chart_group)
+        
+        rate_chart_group = QGroupBox()
+        rate_chart_group.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {COLORS['bg_card']};
+                color: #e5e7eb;
+                border: 1px solid {COLORS['border_light_gray']};
+                border-radius: 8px;
+                margin-top: 0px;
+                padding-top: 0px;
+            }}
+        """)
+        rate_chart_layout = QVBoxLayout()
+        rate_chart_layout.setContentsMargins(0, 0, 0, 0)
+        self.rate_chart = FigureCanvas(Figure(figsize=(6, 4)))
+        self.rate_chart.figure.set_facecolor('#1e293b')
+        rate_chart_layout.addWidget(self.rate_chart)
+        rate_chart_group.setLayout(rate_chart_layout)
+        rate_chart_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        rate_chart_group.setMinimumHeight(240)
+        charts_row1.addWidget(rate_chart_group)
+        
+        chart_container_layout.addLayout(charts_row1)
+        
+        # 第二行：组合图表
+        combined_chart_group = QGroupBox()
+        combined_chart_group.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {COLORS['bg_card']};
+                color: #e5e7eb;
+                border: 1px solid {COLORS['border_light_gray']};
+                border-radius: 8px;
+                margin-top: 0px;
+                padding-top: 0px;
+            }}
+        """)
+        combined_chart_layout = QVBoxLayout()
+        combined_chart_layout.setContentsMargins(0, 0, 0, 0)
+        self.combined_chart = FigureCanvas(Figure(figsize=(12, 5)))
+        self.combined_chart.figure.set_facecolor('#1e293b')
+        combined_chart_layout.addWidget(self.combined_chart)
+        combined_chart_group.setLayout(combined_chart_layout)
+        combined_chart_group.setMinimumHeight(384)
+        chart_container_layout.addWidget(combined_chart_group)
+        
+        content_layout.addWidget(chart_container)
         
         # 添加OCR按钮
         ocr_layout = QHBoxLayout()
@@ -716,9 +794,81 @@ class RegionTab(QWidget):
         self.result_table.update_data(self.results, best_profit_rate, best_total_profit, self.current_sort)
 
         if self.results:
-            self.chart_widget.update_charts(self.results)
+            self.update_charts()
 
         self.update_suggestion(best_profit_rate, best_total_profit)
+
+    def update_charts(self):
+        names = [item['name'] for item in self.results]
+        profits = [item['totalProfit'] for item in self.results]
+        rates = [item['profitRate'] for item in self.results]
+        
+        # 利润图表
+        self.profit_chart.figure.clear()
+        ax1 = self.profit_chart.figure.add_subplot(111)
+        colors1 = ['#0ea5e980' if p >= 0 else '#ef444480' for p in profits]
+        ax1.bar(names, profits, color=colors1)
+        ax1.set_title('总利润', color='#e5e7eb')
+        ax1.tick_params(axis='x', colors='#94a3b8', rotation=45, labelsize=8)
+        ax1.tick_params(axis='y', colors='#94a3b8')
+        ax1.spines['bottom'].set_color('#4b5563')
+        ax1.spines['top'].set_color('#4b5563')
+        ax1.spines['left'].set_color('#4b5563')
+        ax1.spines['right'].set_color('#4b5563')
+        ax1.set_facecolor('#1e293b')
+        ax1.grid(True, alpha=0.3, axis='y')
+        self.profit_chart.figure.set_facecolor('#1e293b')
+        self.profit_chart.draw()
+        
+        # 收益率图表
+        self.rate_chart.figure.clear()
+        ax2 = self.rate_chart.figure.add_subplot(111)
+        colors2 = ['#3b82f680' if r >= 0 else '#ef444480' for r in rates]
+        ax2.bar(names, rates, color=colors2)
+        ax2.set_title('收益率 (%)', color='#e5e7eb')
+        ax2.tick_params(axis='x', colors='#94a3b8', rotation=45, labelsize=8)
+        ax2.tick_params(axis='y', colors='#94a3b8')
+        ax2.spines['bottom'].set_color('#4b5563')
+        ax2.spines['top'].set_color('#4b5563')
+        ax2.spines['left'].set_color('#4b5563')
+        ax2.spines['right'].set_color('#4b5563')
+        ax2.set_facecolor('#1e293b')
+        ax2.grid(True, alpha=0.3, axis='y')
+        self.rate_chart.figure.set_facecolor('#1e293b')
+        self.rate_chart.draw()
+        
+        # 组合图表
+        self.combined_chart.figure.clear()
+        ax3 = self.combined_chart.figure.add_subplot(111)
+        ax3.plot(names, profits, 'o-', color='#0ea5e9', label='总利润', linewidth=2)
+        ax3.set_xlabel('物资名称', color='#e5e7eb')
+        ax3.set_ylabel('总利润', color='#0ea5e9')
+        ax3.tick_params(axis='x', rotation=45, colors='#94a3b8')
+        ax3.tick_params(axis='y', colors='#94a3b8')
+        ax3.spines['bottom'].set_color('#4b5563')
+        ax3.spines['top'].set_color('#4b5563')
+        ax3.spines['left'].set_color('#4b5563')
+        ax3.spines['right'].set_color('#4b5563')
+        ax3.set_facecolor('#1e293b')
+
+        ax4 = ax3.twinx()
+        ax4.plot(names, rates, 's-', color='#3b82f6', label='收益率', linewidth=2)
+        ax4.set_ylabel('收益率 (%)', color='#3b82f6')
+        ax4.tick_params(axis='y', colors='#94a3b8')
+        ax4.spines['bottom'].set_color('#4b5563')
+        ax4.spines['top'].set_color('#4b5563')
+        ax4.spines['left'].set_color('#4b5563')
+        ax4.spines['right'].set_color('#4b5563')
+
+        ax3.set_title(f'{self.config["name"]}物资收益多维度分析', color='#38bdf8', fontsize=14)
+        ax3.grid(True, alpha=0.3, axis='y')
+        
+        lines1, labels1 = ax3.get_legend_handles_labels()
+        lines2, labels2 = ax4.get_legend_handles_labels()
+        ax3.legend(lines1 + lines2, labels1 + labels2, loc='best', labelcolor='#e5e7eb')
+        
+        self.combined_chart.figure.set_facecolor('#1e293b')
+        self.combined_chart.draw()
 
     def update_suggestion(self, best_profit_rate, best_total_profit):
         if not self.results:
