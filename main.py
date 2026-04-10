@@ -120,13 +120,8 @@ class MaterialTable(QTableWidget):
         self.setHorizontalHeaderLabels(headers)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-        # 设置表格大小
-        self.setMinimumHeight(400)
-        self.setMinimumWidth(800)
-        
         # 设置行高
-        for i in range(len(self.config['items'])):
-            self.setRowHeight(i, 30)
+        self.verticalHeader().setDefaultSectionSize(30)
 
         self.setRowCount(len(self.config['items']))
         for row, item_name in enumerate(self.config['items']):
@@ -184,10 +179,6 @@ class ResultTable(QTableWidget):
         self.setColumnCount(len(headers))
         self.setHorizontalHeaderLabels(headers)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        
-        # 设置表格大小
-        self.setMinimumHeight(400)
-        self.setMinimumWidth(800)
         
         # 设置行高
         self.verticalHeader().setDefaultSectionSize(30)
@@ -345,10 +336,10 @@ class RegionTab(QWidget):
         chart_group.setLayout(chart_layout)
         splitter.addWidget(chart_group)
 
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 2)
-        splitter.setStretchFactor(3, 3)
+        splitter.setStretchFactor(0, 1)  # 物资录入
+        splitter.setStretchFactor(1, 1)  # 调度分析报告
+        splitter.setStretchFactor(2, 1)  # 收益计算结果
+        splitter.setStretchFactor(3, 2)  # 可视化图表
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
@@ -465,7 +456,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('终末地物资调度计算器')
-        self.setMinimumSize(1400, 900)
+        self.setMinimumSize(1600, 1000)
         self.init_ui()
 
     def init_ui(self):
