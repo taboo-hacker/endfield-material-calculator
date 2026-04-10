@@ -219,10 +219,12 @@ class ResultTable(QTableWidget):
 class ChartWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.figure = Figure(figsize=(12, 8))
+        self.figure = Figure(figsize=(15, 10))
         self.canvas = FigureCanvas(self.figure)
         layout = QVBoxLayout()
         layout.addWidget(self.canvas)
+        # 设置最小高度
+        self.setMinimumHeight(500)
         self.setLayout(layout)
 
     def update_charts(self, items):
@@ -339,7 +341,7 @@ class RegionTab(QWidget):
         splitter.setStretchFactor(0, 1)  # 物资录入
         splitter.setStretchFactor(1, 1)  # 调度分析报告
         splitter.setStretchFactor(2, 1)  # 收益计算结果
-        splitter.setStretchFactor(3, 2)  # 可视化图表
+        splitter.setStretchFactor(3, 3)  # 可视化图表
 
         main_layout.addWidget(splitter)
         self.setLayout(main_layout)
@@ -456,7 +458,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('终末地物资调度计算器')
-        self.setMinimumSize(1600, 1000)
+        self.setMinimumSize(1800, 1200)
+        # 设置默认窗口大小
+        self.resize(1920, 1080)
         self.init_ui()
 
     def init_ui(self):
