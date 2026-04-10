@@ -127,8 +127,13 @@ class MaterialTable(QTableWidget):
         self.itemChanged.connect(self.on_item_changed)
 
     def on_item_changed(self, item):
-        if self.parent():
-            self.parent().calculate()
+        # 遍历父对象，找到RegionTab
+        parent = self.parent()
+        while parent:
+            if hasattr(parent, 'calculate'):
+                parent.calculate()
+                break
+            parent = parent.parent()
 
     def get_prices(self):
         prices = {}
